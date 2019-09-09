@@ -117,7 +117,7 @@ export abstract class EntityCache implements NormalizedCache {
         // Because we are iterating over an ECMAScript Set, the IDs we add here
         // will be visited in later iterations of the forEach loop only if they
         // were not previously contained by the Set.
-        Object.keys(this.findChildIds(id)).forEach(ids.add, ids);
+        Object.keys(this.findChildRefIds(id)).forEach(ids.add, ids);
         // By removing IDs from the snapshot object here, we protect them from
         // getting removed from the root cache layer below.
         delete snapshot[id];
@@ -137,19 +137,22 @@ export abstract class EntityCache implements NormalizedCache {
     [dataId: string]: Record<string, true>;
   } = Object.create(null);
 
-  public findChildIds(dataId: string): Record<string, true> {
+  public findChildRefIds(dataId: string): Record<string, true> {
     if (!hasOwn.call(this.refs, dataId)) {
       const found = this.refs[dataId] = Object.create(null);
-      // Use the little-known replacer function API of JSON.stringify to find
-      // { __ref } objects quickly and without a lot of traversal code.
-      JSON.stringify(this.data[dataId], (_key, value) => {
-        if (isReference(value)) {
-          found[value.__ref] = true;
-        } else if (value && typeof value === "object") {
-          // Returning the value allows the traversal to continue, which is
-          // necessary only when the value could contain other values that might
-          // be reference objects.
-          return value;
+      const workSet = new Set<Record<string, any>>([this.data[dataId]]);
+      const maybeAddValue = (value: any) => {
+        // No need to add primitive values to the workSet, since they cannot
+        // contain reference objects.
+        if (value && typeof value === "object") {
+          workSet.add(value);
+        }
+      }
+      workSet.forEach(obj => {
+        if (isReference(obj)) {
+          found[obj.__ref] = true;
+        } else if (obj && typeof obj === "object") {
+          Object.values(obj).forEach(maybeAddValue);
         }
       });
     }
@@ -271,11 +274,11 @@ class Layer extends EntityCache {
     return ids;
   }
 
-  public findChildIds(dataId: string): Record<string, true> {
-    const fromParent = this.parent.findChildIds(dataId);
+  public findChildRefIds(dataId: string): Record<string, true> {
+    const fromParent = this.parent.findChildRefIds(dataId);
     return hasOwn.call(this.data, dataId) ? {
       ...fromParent,
-      ...super.findChildIds(dataId),
+      ...super.findChildRefIds(dataId),
     } : fromParent;
   }
 }
