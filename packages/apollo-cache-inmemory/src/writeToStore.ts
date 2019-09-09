@@ -95,6 +95,11 @@ export class StoreWriter {
   }): NormalizedCache {
     const operationDefinition = getOperationDefinition(query)!;
     try {
+      // Any IDs written explicitly to the cache (including ROOT_QUERY, most
+      // frequently) will be retained as reachable root IDs on behalf of their
+      // owner DocumentNode objects, until/unless evicted for all owners.
+      store.retain(dataId, query);
+
       return this.writeSelectionSetToStore({
         result,
         dataId,

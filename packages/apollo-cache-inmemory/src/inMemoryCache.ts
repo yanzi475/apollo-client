@@ -5,7 +5,6 @@ import { DocumentNode } from 'graphql';
 import { Cache, ApolloCache, Transaction } from 'apollo-cache';
 import { addTypenameToDocument, canUseWeakMap } from 'apollo-utilities';
 import { wrap } from 'optimism';
-import { InvariantError } from 'ts-invariant';
 
 import {
   ApolloReducerConfig,
@@ -17,6 +16,7 @@ import { StoreReader } from './readFromStore';
 import { StoreWriter } from './writeToStore';
 import { EntityCache, supportsResultCaching } from './entityCache';
 import { KeyTrie } from 'optimism';
+import { InvariantError } from 'ts-invariant';
 
 export interface InMemoryCacheConfig extends ApolloReducerConfig {
   resultCaching?: boolean;
@@ -174,6 +174,11 @@ export class InMemoryCache extends ApolloCache<NormalizedCacheObject> {
     return () => {
       this.watches.delete(watch);
     };
+  }
+
+  // Request garbage collection of unreachable normalized entities.
+  public gc() {
+    return this.optimisticData.gc();
   }
 
   public evict(query: Cache.EvictOptions): Cache.EvictionResult {
