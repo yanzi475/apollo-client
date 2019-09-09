@@ -1,6 +1,6 @@
 import { NormalizedCache, NormalizedCacheObject, StoreObject } from './types';
 import { wrap, OptimisticWrapperFunction } from 'optimism';
-import { isReference } from './helpers';
+import { isReference, isObjectOrArray } from './helpers';
 
 const hasOwn = Object.prototype.hasOwnProperty;
 
@@ -137,22 +137,21 @@ export abstract class EntityCache implements NormalizedCache {
     [dataId: string]: Record<string, true>;
   } = Object.create(null);
 
+  // Find all { __ref: <dataId> } strings contained by the data associated with
+  // the given dataId. The results will be cached until the value changes.
   public findChildRefIds(dataId: string): Record<string, true> {
     if (!hasOwn.call(this.refs, dataId)) {
       const found = this.refs[dataId] = Object.create(null);
-      const workSet = new Set<Record<string, any>>([this.data[dataId]]);
-      const maybeAddValue = (value: any) => {
-        // No need to add primitive values to the workSet, since they cannot
-        // contain reference objects.
-        if (value && typeof value === "object") {
-          workSet.add(value);
-        }
-      }
+      const workSet = new Set([this.data[dataId]]);
       workSet.forEach(obj => {
         if (isReference(obj)) {
           found[obj.__ref] = true;
-        } else if (obj && typeof obj === "object") {
-          Object.values(obj).forEach(maybeAddValue);
+        } else if (isObjectOrArray(obj)) {
+          Object.values(obj)
+            // No need to add primitive values to the workSet, since they cannot
+            // contain reference objects.
+            .filter(isObjectOrArray)
+            .forEach(workSet.add, workSet);
         }
       });
     }

@@ -8,8 +8,12 @@ export function makeReference(id: string): Reference {
   return { __ref: String(id) };
 }
 
+export function isObjectOrArray(obj: any): obj is Record<string, any> {
+  return obj !== null && typeof obj === 'object';
+}
+
 export function isReference(obj: any): obj is Reference {
-  return obj && typeof obj === 'object' && typeof obj.__ref === 'string';
+  return isObjectOrArray(obj) && typeof obj.__ref === 'string';
 }
 
 export function getTypenameFromStoreObject(
