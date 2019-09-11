@@ -15,6 +15,7 @@ export declare type IdGetter = (
  * StoreObjects from the cache
  */
 export interface NormalizedCache {
+  has(dataId: string): boolean;
   get(dataId: string): StoreObject;
   set(dataId: string, value: StoreObject): void;
   delete(dataId: string): void;

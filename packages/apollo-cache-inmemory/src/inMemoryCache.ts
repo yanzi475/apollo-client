@@ -16,7 +16,6 @@ import { StoreReader } from './readFromStore';
 import { StoreWriter } from './writeToStore';
 import { EntityCache, supportsResultCaching } from './entityCache';
 import { KeyTrie } from 'optimism';
-import { InvariantError } from 'ts-invariant';
 
 export interface InMemoryCacheConfig extends ApolloReducerConfig {
   resultCaching?: boolean;
@@ -202,7 +201,14 @@ export class InMemoryCache extends ApolloCache<NormalizedCacheObject> {
   }
 
   public evict(query: Cache.EvictOptions): Cache.EvictionResult {
-    throw new InvariantError(`eviction is not implemented on InMemory Cache`);
+    if (this.optimisticData.has(query.rootId)) {
+      // Note that this deletion does not trigger a garbage collection, which
+      // is convenient in cases where you want to evict multiple entities before
+      // performing a single garbage collection.
+      this.optimisticData.delete(query.rootId);
+      return { success: !this.optimisticData.has(query.rootId) };
+    }
+    return { success: false };
   }
 
   public reset(): Promise<void> {
